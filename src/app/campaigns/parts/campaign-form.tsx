@@ -277,8 +277,7 @@ export function CampaignForm({ initial, mode }: { initial?: Partial<Campaign>; m
       if (mode === "create") {
         await call(`/campaigns`, { method: "POST", body: JSON.stringify(payload) })
         show({ title: "Campanha criada", description: "Sua campanha foi criada com sucesso." })
-        const id = initial?.id as string
-        router.push(`/campaigns/${id}/embed`); router.refresh()
+        router.push(`/campaigns`); router.refresh()
       } else {
         const id = initial?.id as string
         await call(`/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(payload) })
