@@ -2,11 +2,10 @@
 "use client"
 
 import * as React from "react"
-import { usePathname, useSearchParams } from "next/navigation"
+import { usePathname } from "next/navigation"
 
 export default function RouteProgress() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
 
   // visuais
   const [active, setActive] = React.useState(false)
@@ -158,7 +157,7 @@ export default function RouteProgress() {
     const cleanup = finish()
     return cleanup
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, searchParams])
+  }, [pathname])
 
   // UI
   const scale = active ? progress : 0
