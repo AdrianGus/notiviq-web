@@ -13,7 +13,7 @@ export function useClientApi() {
   const { getToken } = useAuth()
 
   async function getJwt(): Promise<string | null> {
-    const tryTemplates: (string | undefined)[] = ["default"]
+    const tryTemplates: (string | undefined)[] = [undefined, "notiviq-api", "default"]
     for (const t of tryTemplates) {
       try {
         const token = await getToken(t ? { template: t } : undefined)

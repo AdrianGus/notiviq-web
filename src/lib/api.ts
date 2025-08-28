@@ -11,7 +11,7 @@ function buildUrl(path: string) {
 
 async function getJwtFromClerk(): Promise<string | null> {
   const session = await auth();
-  const tryTemplates: (string | undefined)[] = [undefined];
+  const tryTemplates: (string | undefined)[] = [undefined, "notiviq-api", "default"];
   for (const t of tryTemplates) {
     try {
       const token = await session.getToken?.(t ? { template: t } : undefined);
