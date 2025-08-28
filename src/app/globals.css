@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body{@apply bg-neutral-50 text-neutral-900}
+* { caret-color: auto; }
+
+/* Esconde o caret apenas em elementos não-editáveis  */
+body *:where(:not(input):not(textarea):not(select):not([contenteditable="true"])) {
+  caret-color: transparent;
+}
+
+/* Garante caret visível em campos editáveis (evita herança) */
+input, textarea, select, [contenteditable="true"] {
+  caret-color: auto !important;
+}
+
+.ProseMirror, .ProseMirror * {
+  caret-color: auto !important;
+}
+
+@keyframes topbar {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(50%); }
+  100% { transform: translateX(200%); }
+}
+.animate-topbar { animation: topbar 1.1s ease-in-out infinite; }
