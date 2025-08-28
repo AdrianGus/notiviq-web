@@ -275,14 +275,35 @@ export function CampaignForm({ initial, mode }: { initial?: Partial<Campaign>; m
     try {
       setLoading(true)
       if (mode === "create") {
-        await call(`/campaigns`, { method: "POST", body: JSON.stringify(payload) })
-        show({ title: "Campanha criada", description: "Sua campanha foi criada com sucesso." })
-        router.push(`/campaigns`); router.refresh()
+        const response = await call(`/campaigns`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+
+        // extrai JSON da resposta
+        const data = await response.json();
+        const id = data?.id; // ou data?._id dependendo de como sua API retorna
+
+        show({ title: "Campanha criada", description: "Sua campanha foi criada com sucesso." });
+
+        if (id) {
+          router.push(`/campaigns/${id}/embed`);
+        } else {
+          // fallback se não vier id
+          router.push(`/campaigns`);
+        }
+        router.refresh();
       } else {
-        const id = initial?.id as string
-        await call(`/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(payload) })
-        show({ title: "Campanha atualizada", description: "Alterações salvas com sucesso." })
-        router.push(`/campaigns/${id}/embed`); router.refresh()
+        const id = initial?.id as string;
+        const response = await call(`/campaigns/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+
+        show({ title: "Campanha atualizada", description: "Alterações salvas com sucesso." });
+        router.push(`/campaigns/${id}/embed`);
+        router.refresh();
       }
     } catch (e: any) {
       show({ variant: "destructive", title: "Erro", description: e?.message || "Não foi possível concluir a ação." })
