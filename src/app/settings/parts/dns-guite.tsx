@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useClientApi } from "@/lib/client-api"
 import { useToast } from "@/components/ui/use-toast"
 import { formatApiError } from "@/lib/format-api-error"
+import { useRouter } from "next/navigation"
 
 export default function DnsGuide({
   apiHost,
@@ -17,6 +18,8 @@ export default function DnsGuide({
 }) {
   const { call } = useClientApi()
   const { show } = useToast()
+  const router = useRouter()
+
   const [domain, setDomain] = React.useState(initialDomain || "")
   const [checking, setChecking] = React.useState(false)
   const [status, setStatus] = React.useState<null | { ok: boolean; msg: string }>(null)
@@ -56,6 +59,7 @@ export default function DnsGuide({
           title: "Domínio salvo",
           description: "Seu domínio foi atualizado com sucesso.",
         })
+        router.refresh() // 👈 força atualização do Server Component
       } else {
         throw new Error(await res.text())
       }
