@@ -13,10 +13,8 @@ async function getCampaign(id: string): Promise<Campaign> {
 export default async function EmbedPage({ params }: { params: { id: string } }) {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL!
 
-  // carrega campanha
   const campaign = await getCampaign(params.id)
 
-  // pega VAPID public key
   const vapidRes = await fetch(`${apiBase}/vapid`, { cache: "no-store" })
   if (!vapidRes.ok) throw new Error("Falha ao obter VAPID_PUBLIC_KEY")
   const { publicKey } = await vapidRes.json()
@@ -27,7 +25,7 @@ export default async function EmbedPage({ params }: { params: { id: string } }) 
 <button
   data-notiviq-subscribe
   data-account-id="${campaign.accountId}"
-  data-publishable-key="/* pk_publica_da_sua_conta */"
+  data-publishable-key="${process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}"
   data-vapid="${publicKey}"
   data-api="${apiBase}"
   data-sw="/sw.js"
