@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { UserButton } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
-import { Megaphone, BellRing, Cog } from "lucide-react"
+import { Megaphone, BellRing, Cog, Home } from "lucide-react"
 
 type NavItem = {
   href: string
@@ -14,6 +14,13 @@ type NavItem = {
 }
 
 const NAV: NavItem[] = [
+  {
+    href: "/",
+    label: "Página Inicial",
+    icon: Home,
+    // ativa só na raiz
+    match: (p) => p === "/",
+  },
   {
     href: "/campaigns",
     label: "Campanhas",
@@ -26,7 +33,12 @@ const NAV: NavItem[] = [
     icon: BellRing,
     match: (p) => !!p?.startsWith("/subscriptions"),
   },
-  { href: "/settings", label: "Configurações", icon: Cog, match: (p) => !!p?.startsWith("/settings") }
+  {
+    href: "/settings",
+    label: "Configurações",
+    icon: Cog,
+    match: (p) => !!p?.startsWith("/settings"),
+  },
 ]
 
 function NavLink({ item, pathname }: { item: NavItem; pathname?: string | null }) {

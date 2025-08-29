@@ -5,17 +5,26 @@ import Script from "next/script"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 
+type Mode = "iframe" | "direct"
+
 type Props = {
+  mode?: Mode
   apiBase: string
   vapidPublicKey: string
+  iframeOrigin?: string
   campaign: { id: string; accountId: string; title?: string }
 }
 
-export default function TestInlineSubscribe({ apiBase, vapidPublicKey, campaign }: Props) {
+export default function TestInlineSubscribe({
+  mode = "iframe",
+  apiBase,
+  vapidPublicKey,
+  iframeOrigin,
+  campaign,
+}: Props) {
   const { show } = useToast()
   const btnRef = React.useRef<HTMLButtonElement | null>(null)
 
-  const swUrl = `/sw.js?api=${encodeURIComponent(apiBase)}`
   const scriptUrl = `${apiBase.replace(/\/$/, "")}/subscribe.v1.js`
 
   const [permission, setPermission] = React.useState<NotificationPermission | "unsupported">("default")
@@ -36,14 +45,28 @@ export default function TestInlineSubscribe({ apiBase, vapidPublicKey, campaign 
     if (!el) return
     el.setAttribute("data-api", apiBase)
     el.setAttribute("data-vapid", vapidPublicKey)
-    el.setAttribute("data-sw", swUrl)
     el.setAttribute("data-account-id", campaign.accountId)
     el.setAttribute("data-campaign-id", campaign.id)
+
     // opcional: pk se usar por conta
     if (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
       el.setAttribute("data-publishable-key", process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
     }
-  }, [apiBase, vapidPublicKey, swUrl, campaign])
+
+    // modo
+    if (mode === "iframe") {
+      if (!iframeOrigin) {
+        console.warn("[NotivIQ] iframeOrigin ausente para modo=iframe")
+      } else {
+        el.setAttribute("data-iframe-origin", iframeOrigin)
+        el.removeAttribute("data-sw")
+      }
+    } else {
+      const swUrl = `/sw.js?api=${encodeURIComponent(apiBase)}`
+      el.setAttribute("data-sw", swUrl)
+      el.removeAttribute("data-iframe-origin")
+    }
+  }, [mode, apiBase, vapidPublicKey, iframeOrigin, campaign])
 
   async function refreshPermission() {
     if (!("Notification" in window)) return setPermission("unsupported")
@@ -70,12 +93,20 @@ export default function TestInlineSubscribe({ apiBase, vapidPublicKey, campaign 
 
   return (
     <>
-      {/* Carrega o script de subscribe da API */}
+      {/* Carrega o script subscribe da API */}
       <Script src={scriptUrl} strategy="afterInteractive" />
 
       <div className="space-y-4">
         <div className="text-sm">
           Campanha: <strong>{campaign.title || campaign.id}</strong>
+          <div className="text-xs text-neutral-500">
+            Modo: <code>{mode}</code>
+            {mode === "iframe" && iframeOrigin ? (
+              <>
+                {" • "}Origin do iframe: <code>{iframeOrigin}</code>
+              </>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -108,9 +139,11 @@ export default function TestInlineSubscribe({ apiBase, vapidPublicKey, campaign 
             {" • "}
             Push: <strong className={hasPush ? "text-emerald-700" : "text-red-700"}>{hasPush ? "disponível" : "indisponível"}</strong>
           </div>
-          <div className="mt-2 text-xs text-neutral-500">
-            SW URL: <code className="rounded bg-neutral-50 px-1">{swUrl}</code>
-          </div>
+          {mode === "direct" ? (
+            <div className="mt-2 text-xs text-neutral-500">
+              SW URL: <code className="rounded bg-neutral-50 px-1">{`/sw.js?api=${encodeURIComponent(apiBase)}`}</code>
+            </div>
+          ) : null}
         </div>
       </div>
     </>
