@@ -8,10 +8,11 @@ import NotificationsStacked from "@/components/charts/notifications-stacked"
 import TopCampaignsBar from "@/components/charts/top-campaigns-bar"
 import { Skeleton } from "@/components/ui/skeleton"
 
+import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
+
 /* Utils */
-function toISODate(d: Date) {
-  return d.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" })
-}
+function toISODate(d: Date) { return d.toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" }) }
 function startOfDayLocal(d: Date) { const s = new Date(d); s.setHours(0, 0, 0, 0); return s }
 function addDays(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x }
 function enumerateDays(fromISO: string, toISO: string) {
@@ -105,6 +106,10 @@ async function getData(fromISO: string, toISO: string) {
 }
 
 export default async function HomePage({ searchParams }: { searchParams: { from?: string; to?: string } }) {
+  const { userId } = await auth()
+
+  if (!userId) redirect("/sign-in")
+
   const today = new Date()
   const fourteenAgo = addDays(today, -13)
   const defaultFrom = toISODate(fourteenAgo)
@@ -113,7 +118,13 @@ export default async function HomePage({ searchParams }: { searchParams: { from?
   const from = (searchParams?.from as string) || defaultFrom
   const to = (searchParams?.to as string) || defaultTo
 
-  const data = await getData(from, to)
+  // (opcional) try/catch extra – se perder sessão durante a chamada, redireciona
+  let data
+  try {
+    data = await getData(from, to)
+  } catch (_e) {
+    redirect("/sign-in")
+  }
 
   return (
     <DashboardShell>
