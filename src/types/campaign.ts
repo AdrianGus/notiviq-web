@@ -42,7 +42,7 @@ export const intervalLabels: Record<string, string> = {
 
 export interface Campaign {
   id: string
-  accountId?: string
+  accountId: string
   status: CampaignStatusEnum
   title: string
   body: string

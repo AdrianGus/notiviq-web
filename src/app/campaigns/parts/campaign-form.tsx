@@ -28,6 +28,14 @@ function toLocalDatetimeInputValue(dateLike?: string | Date | null): string {
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
   return local.toISOString().slice(0, 16)
 }
+
+// ★ NOVO: agora local truncado para minuto — ideal para min dos inputs
+function nowLocalIsoMinute(): string {
+  const d = new Date()
+  const localMs = d.getTime() - d.getTimezoneOffset() * 60000
+  return new Date(localMs).toISOString().slice(0, 16)
+}
+
 function isValidUrl(u?: string): boolean { if (!u) return false; try { new URL(u); return true } catch { return false } }
 function isImageUrl(u?: string): boolean { return !!u && isValidUrl(u) && /\.(png|jpe?g|gif|webp|svg)$/i.test(u) }
 function hostFromFirstAction(actions: NotificationAction[]): string | null { const url = actions?.[0]?.url; try { return url ? new URL(url).host : null } catch { return null } }
@@ -86,13 +94,13 @@ function AndroidNotificationCard({
   title?: string
   bodyHtml?: string
   icon?: string
-  image?: string   // <-- NOVO
+  image?: string
   actions: NotificationAction[]
   status?: string
 }) {
   const validIcon = isImageUrl(icon)
   const host = hostFromFirstAction(actions) || "seusite.com"
-  const showImage = isImageUrl(image) // <-- NOVO
+  const showImage = isImageUrl(image)
 
   return (
     <div className="w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow">
@@ -116,28 +124,18 @@ function AndroidNotificationCard({
           {title || "Título da notificação"}
         </div>
 
-        {/* corpo com HTML sanitizado */}
         {bodyHtml ? (
           <NotificationBody html={bodyHtml} />
         ) : (
           <div className="text-xs text-neutral-700">Conteúdo da mensagem pré-visualizada…</div>
         )}
 
-        {/* imagem opcional — QUADRADA */}
         {showImage && (
-          <div
-            className="w-full overflow-hidden rounded-md border"
-            style={{ aspectRatio: "1 / 1" }}
-          >
-            <img
-              src={image}
-              alt="Imagem da notificação"
-              className="h-full w-full object-cover"
-            />
+          <div className="w-full overflow-hidden rounded-md border" style={{ aspectRatio: "1 / 1" }}>
+            <img src={image} alt="Imagem da notificação" className="h-full w-full object-cover" />
           </div>
         )}
 
-        {/* ações */}
         {actions?.length > 0 && (
           <div className="flex justify-end gap-2 pt-1">
             {actions.slice(0, 2).map((a, i) => (
@@ -171,22 +169,16 @@ function AndroidPhonePreview(props: {
 }) {
   return (
     <div className="mx-auto w-[360px]">
-      {/* moldura do aparelho */}
       <div className="relative rounded-[36px] border border-black/20 bg-black p-2 shadow-2xl">
-        {/* tela */}
         <div className="relative h-[720px] w-[336px] overflow-hidden rounded-[28px] bg-neutral-950">
-          {/* papel de parede */}
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500 via-sky-600 to-indigo-700 opacity-80" />
-          {/* status bar */}
           <div className="absolute inset-x-0 top-0 z-10 flex h-10 items-center px-4 text-xs text-white/90">
             <span className="font-medium">12:45</span>
             <span className="ml-auto">🔋 📶 📡</span>
           </div>
-          {/* notificação */}
           <div className="absolute inset-x-3 top-12 z-10">
             <AndroidNotificationCard {...props} />
           </div>
-          {/* home pill */}
           <div className="absolute inset-x-0 bottom-2 z-10 flex justify-center">
             <div className="h-1.5 w-24 rounded-full bg-white/70" />
           </div>
@@ -203,6 +195,13 @@ export function CampaignForm({ initial, mode }: { initial?: Partial<Campaign>; m
   const router = useRouter()
   const [loading, setLoading] = React.useState(false)
   const [errors, setErrors] = React.useState<Record<string, string>>({})
+
+  // ★ NOVO: min dinâmico “agora” (atualiza a cada 30s)
+  const [nowIso, setNowIso] = React.useState<string>(nowLocalIsoMinute())
+  React.useEffect(() => {
+    const id = setInterval(() => setNowIso(nowLocalIsoMinute()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
   // schedule
   const [scheduleMode, setScheduleMode] = React.useState<string>(initial?.schedule?.mode ?? CampaignScheduleModeEnum.ONE_TIME)
@@ -225,6 +224,16 @@ export function CampaignForm({ initial, mode }: { initial?: Partial<Campaign>; m
   // tags
   const [tags, setTags] = React.useState<string[]>(() => initial?.target?.tags ?? [])
 
+  // ★ NOVO: se o usuário empurra o início para depois do fim, alinhar automaticamente
+  React.useEffect(() => {
+    if (!scheduleStartAt || !scheduleEndAt) return
+    const startMs = new Date(scheduleStartAt).getTime()
+    const endMs = new Date(scheduleEndAt).getTime()
+    if (endMs < startMs) {
+      setScheduleEndAt(scheduleStartAt)
+    }
+  }, [scheduleStartAt]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const newErrors: Record<string, string> = {}
@@ -238,10 +247,21 @@ export function CampaignForm({ initial, mode }: { initial?: Partial<Campaign>; m
     if (!status) newErrors.status = "Selecione um status."
     if (!scheduleMode) newErrors.scheduleMode = "Selecione o modo de agendamento."
     if (!scheduleStartAt) newErrors.scheduleStartAt = "Informe a data/hora de início."
+
+    // ★ NOVO: validar startAt >= agora
+    if (scheduleStartAt) {
+      const startMs = new Date(scheduleStartAt).getTime()
+      const minMs = new Date(nowIso).getTime()
+      if (startMs < minMs) {
+        newErrors.scheduleStartAt = "O início deve ser a partir do momento atual."
+      }
+    }
+
     if (scheduleMode === "RECURRING" && !scheduleInterval) newErrors.scheduleInterval = "Selecione um intervalo para campanhas recorrentes."
+
     if (scheduleEndAt && scheduleStartAt) {
       const start = new Date(scheduleStartAt).getTime(); const end = new Date(scheduleEndAt).getTime()
-      if (!(end > start)) newErrors.scheduleEndAt = "A data/hora de término deve ser posterior ao início."
+      if (!(end >= start)) newErrors.scheduleEndAt = "A data/hora de término deve ser igual ou posterior ao início."
     }
 
     const cleanedActions = (actions || [])
@@ -275,35 +295,19 @@ export function CampaignForm({ initial, mode }: { initial?: Partial<Campaign>; m
     try {
       setLoading(true)
       if (mode === "create") {
-        const response = await call(`/campaigns`, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-
-        // extrai JSON da resposta
-        const data = await response.json();
-        const id = data?.id; // ou data?._id dependendo de como sua API retorna
-
-        show({ title: "Campanha criada", description: "Sua campanha foi criada com sucesso." });
-
-        if (id) {
-          router.push(`/campaigns/${id}/embed`);
-        } else {
-          // fallback se não vier id
-          router.push(`/campaigns`);
-        }
-        router.refresh();
+        const response = await call(`/campaigns`, { method: "POST", body: JSON.stringify(payload) })
+        const data = await response.json()
+        const id = data?.id
+        show({ title: "Campanha criada", description: "Sua campanha foi criada com sucesso." })
+        router.push(id ? `/campaigns/${id}/embed` : `/campaigns`)
+        router.refresh()
       } else {
-        const id = initial?.id as string;
-        const response = await call(`/campaigns/${id}`, {
-          method: "PATCH",
-          body: JSON.stringify(payload),
-        });
-        const data = await response.json();
-
-        show({ title: "Campanha atualizada", description: "Alterações salvas com sucesso." });
-        router.push(`/campaigns/${id}/embed`);
-        router.refresh();
+        const id = initial?.id as string
+        const response = await call(`/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(payload) })
+        await response.json()
+        show({ title: "Campanha atualizada", description: "Alterações salvas com sucesso." })
+        router.push(`/campaigns/${id}/embed`)
+        router.refresh()
       }
     } catch (e: any) {
       show({ variant: "destructive", title: "Erro", description: e?.message || "Não foi possível concluir a ação." })
@@ -342,13 +346,14 @@ export function CampaignForm({ initial, mode }: { initial?: Partial<Campaign>; m
 
           <div data-field="image">
             <CloudinaryImageUpload
-              label={<>Ícone (somente imagem) <span className="text-red-600">*</span></>}
+              label={<>Imagem (opcional)</>}
               value={image || ""}
               onChange={(url) => setImage(url || "")}
               helpText="Formatos: png, jpg, jpeg, gif, webp, svg. (opcional)"
               folder="notiviq-images"
               className="w-full"
             />
+            {errors.image && <p className="mt-1 text-xs text-red-600">{errors.image}</p>}
           </div>
         </div>
 
@@ -397,26 +402,33 @@ export function CampaignForm({ initial, mode }: { initial?: Partial<Campaign>; m
             {errors.scheduleMode && <p className="mt-1 text-xs text-red-600">{errors.scheduleMode}</p>}
           </div>
 
-          {/* Início */}
+          {/* Início — ★ minIso = agora dinâmico */}
           <div data-field="scheduleStartAt">
             <DateTimeInput
               id="scheduleStartAt"
               label={<>Início</>}
               required
               valueIso={scheduleStartAt}
-              onChangeIso={setScheduleStartAt}
+              onChangeIso={(iso) => {
+                setScheduleStartAt(iso)
+                // se endAt existir e ficou menor, alinhar
+                if (iso && scheduleEndAt && new Date(scheduleEndAt).getTime() < new Date(iso).getTime()) {
+                  setScheduleEndAt(iso)
+                }
+              }}
               error={errors.scheduleStartAt}
+              minIso={nowIso} // ★ NOVO: bloqueia datas anteriores a agora
             />
           </div>
 
-          {/* Fim (opcional) */}
+          {/* Fim (opcional) — ★ minIso = startAt */}
           <div data-field="scheduleEndAt">
             <DateTimeInput
               id="scheduleEndAt"
               label={<>Fim (opcional)</>}
               valueIso={scheduleEndAt}
               onChangeIso={setScheduleEndAt}
-              minIso={scheduleStartAt || undefined}
+              minIso={scheduleStartAt || undefined} // ★ já impede ser menor que o início
               error={errors.scheduleEndAt}
             />
           </div>
